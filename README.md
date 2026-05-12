@@ -46,10 +46,24 @@ List available skills before installing:
 npx skills add ulyanas/product-research-skills --list
 ```
 
-Set the target agent explicitly when you want a fixed destination:
+Set the target agent explicitly when you want a fixed destination. Most users do not need this because the CLI detects the current agent automatically.
+
+### Agent Examples
+
+Codex:
 
 ```bash
 npx skills add ulyanas/product-research-skills --skill product-research-suite -a codex -g -y
 ```
 
-The CLI detects the current agent automatically when you do not pass `-a`.
+Claude Code:
+
+```bash
+npx skills add ulyanas/product-research-skills --skill product-research-suite -a claude-code -g -y
+```
+
+Cursor:
+
+```bash
+npx skills add ulyanas/product-research-skills --skill product-research-suite -a cursor -g -y
+```
