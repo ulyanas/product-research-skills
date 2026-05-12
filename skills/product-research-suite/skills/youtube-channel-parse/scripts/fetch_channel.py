@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,17 @@ from youtube_shared import (
     parse_metadata_filters,
     write_json,
 )
+
+
+class DependencyError(RuntimeError):
+    pass
+
+
+def yt_dlp_missing_message() -> str:
+    return (
+        "yt-dlp is required for YouTube inventory and metadata fetches. "
+        "Re-run with: uv run --with yt-dlp python scripts/fetch_channel.py ..."
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,6 +58,8 @@ def channel_videos_url(channel_url: str) -> str:
 
 
 def run_command(cmd: list[str]) -> str:
+    if shutil.which("yt-dlp") is None:
+        raise DependencyError(yt_dlp_missing_message())
     result = subprocess.run(cmd, check=True, capture_output=True, text=True)
     return result.stdout
 
@@ -212,4 +226,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DependencyError as exc:
+        raise SystemExit(f"Error: {exc}") from None

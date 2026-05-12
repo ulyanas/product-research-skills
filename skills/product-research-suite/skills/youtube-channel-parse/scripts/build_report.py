@@ -7,6 +7,7 @@ from pathlib import Path
 from youtube_shared import (
     apply_filters,
     dataset_markdown,
+    detailed_summary_from_record,
     extract_top_phrases,
     filtered_dir,
     parse_date_value,
@@ -14,6 +15,7 @@ from youtube_shared import (
     read_json,
     reports_dir,
     summary_from_record,
+    transcript_source_label,
     transcripts_dir,
     write_json,
     write_records_csv,
@@ -55,12 +57,12 @@ def write_video_markdown(output_dir: Path, records: list[dict]) -> None:
             "",
             f"- URL: {record.get('url')}",
             f"- Upload date: {record.get('upload_date') or 'unknown'}",
-            f"- Transcript status: {record.get('transcript_status') or 'unknown'}",
+            f"- Transcript source: {transcript_source_label(record.get('transcript_status'))}",
             f"- Words: {record.get('transcript_word_count', 0)}",
             "",
             "## Summary",
             "",
-            record.get("summary") or summary_from_record(record),
+            record.get("detailed_summary") or record.get("summary") or detailed_summary_from_record(record),
             "",
         ]
         phrases = record.get("top_phrases", [])
@@ -104,6 +106,7 @@ def main() -> None:
     for record in filtered_records:
         record["top_phrases"] = record.get("top_phrases") or extract_top_phrases(record)
         record["summary"] = record.get("summary") or summary_from_record(record)
+        record["detailed_summary"] = record.get("detailed_summary") or detailed_summary_from_record(record)
 
     payload = dict(payload) if isinstance(payload, dict) else {}
     payload["videos"] = filtered_records

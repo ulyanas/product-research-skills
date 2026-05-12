@@ -10,13 +10,47 @@ from pathlib import Path
 from typing import Any
 
 DEFAULT_STOPWORDS = {
+    "a",
+    "an",
+    "are",
+    "as",
+    "at",
+    "be",
+    "been",
+    "but",
+    "by",
+    "can",
+    "could",
+    "did",
+    "do",
+    "does",
+    "doing",
+    "done",
+    "get",
+    "gets",
+    "got",
+    "had",
+    "has",
     "the",
     "and",
     "for",
+    "you",
+    "our",
+    "ours",
+    "we",
+    "us",
     "with",
     "that",
     "this",
     "from",
+    "were",
+    "was",
+    "it's",
+    "its",
+    "i'm",
+    "i've",
+    "we're",
+    "we've",
     "into",
     "your",
     "their",
@@ -45,7 +79,82 @@ DEFAULT_STOPWORDS = {
     "videos",
     "youtube",
     "channel",
+    "there",
+    "here",
+    "how",
+    "not",
+    "next",
+    "every",
+    "single",
+    "one",
+    "two",
+    "three",
+    "very",
+    "really",
+    "quite",
+    "yeah",
+    "okay",
+    "ok",
+    "right",
+    "well",
+    "want",
+    "wants",
+    "wanted",
+    "need",
+    "needs",
+    "going",
+    "gone",
+    "come",
+    "comes",
+    "coming",
+    "look",
+    "looks",
+    "looking",
+    "make",
+    "makes",
+    "made",
+    "thing",
+    "things",
+    "stuff",
+    "people",
+    "person",
+    "actually",
+    "basically",
+    "literally",
+    "maybe",
+    "perhaps",
+    "still",
+    "even",
+    "back",
+    "again",
+    "already",
+    "able",
+    "let",
+    "lets",
+    "lot",
+    "lots",
+    "kind",
+    "sort",
+    "mean",
+    "means",
+    "said",
+    "say",
+    "says",
+    "talk",
+    "talks",
+    "agent",
+    "clicker",
+    "little",
+    "bit",
+    "thank",
+    "thanks",
 }
+
+FACT_HINTS = ("%", "percent", "million", "billion", "year", "years", "today", "now", "currently", "data", "result", "results")
+INSIGHT_HINTS = ("because", "therefore", "however", "problem", "challenge", "opportunity", "risk", "benefit", "future", "scale", "why", "thesis", "insight", "lesson", "tradeoff", "better", "worse", "important")
+OPINION_HINTS = ("think", "believe", "argue", "should", "must", "recommend", "prefer", "opinion", "view")
+OUTCOME_HINTS = ("outcome", "result", "conclusion", "takeaway", "next", "future", "goal", "plan", "closing", "summary", "ultimately")
+DISFLUENCY_TOKENS = {"um", "uh", "yeah", "oh", "okay", "ok", "hmm", "ah"}
 
 
 def clean_text(text: str) -> str:
@@ -83,16 +192,156 @@ def summary_from_record(record: dict[str, Any], limit: int = 280) -> str:
     return title
 
 
+def _unique_sentences(sentences: list[str]) -> list[str]:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for sentence in sentences:
+        key = sentence.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(sentence)
+    return unique
+
+
+def _pick_sentences(
+    sentences: list[str],
+    predicate,
+    *,
+    limit: int = 2,
+    used: set[str] | None = None,
+) -> list[str]:
+    picked: list[str] = []
+    used = used if used is not None else set()
+    for sentence in sentences:
+        key = sentence.lower()
+        if key in used:
+            continue
+        if predicate(sentence):
+            picked.append(sentence)
+            used.add(key)
+            if len(picked) >= limit:
+                break
+    return picked
+
+
+def _sentence_has_signal(sentence: str) -> bool:
+    lowered = sentence.lower()
+    if "[applause]" in lowered:
+        return False
+    raw_tokens = re.findall(r"[a-z][a-z0-9\-]{1,}", lowered)
+    if len(raw_tokens) < 6:
+        return False
+    meaningful_tokens = [token for token in raw_tokens if token not in DEFAULT_STOPWORDS]
+    if len(meaningful_tokens) < 4:
+        return False
+    disfluencies = sum(token in DISFLUENCY_TOKENS for token in raw_tokens)
+    return disfluencies <= max(1, len(raw_tokens) // 6)
+
+
+def detailed_summary_from_record(record: dict[str, Any], limit: int = 900) -> str:
+    description = clean_text(str(record.get("description") or ""))
+    transcript_text = clean_text(str(record.get("transcript_text") or ""))
+    title = clean_text(str(record.get("title") or record.get("video_id") or "Video"))
+
+    description_sentences = _unique_sentences(split_sentences(description))
+    transcript_sentences = _unique_sentences(split_sentences(transcript_text))
+    source_sentences = transcript_sentences or description_sentences
+    used: set[str] = set()
+
+    main_plot = description_sentences[:2] or source_sentences[:2]
+    for sentence in main_plot:
+        used.add(sentence.lower())
+
+    facts = _pick_sentences(
+        source_sentences,
+        lambda sentence: _sentence_has_signal(sentence)
+        and (any(hint in sentence.lower() for hint in FACT_HINTS) or bool(re.search(r"\d", sentence))),
+        used=used,
+    )
+    insights = _pick_sentences(
+        source_sentences,
+        lambda sentence: _sentence_has_signal(sentence)
+        and any(hint in sentence.lower() for hint in INSIGHT_HINTS + OPINION_HINTS),
+        used=used,
+    )
+    outcome = _pick_sentences(
+        list(reversed(source_sentences)),
+        lambda sentence: _sentence_has_signal(sentence)
+        and (any(hint in sentence.lower() for hint in OUTCOME_HINTS) or len(sentence.split()) > 8),
+        limit=1,
+        used=used,
+    )
+
+    sections: list[str] = []
+    if main_plot:
+        sections.append(f"Main plot: {' '.join(main_plot)}")
+    if facts:
+        sections.append(f"Facts: {' '.join(facts)}")
+    if insights:
+        sections.append(f"Insights and opinions: {' '.join(insights)}")
+    if outcome:
+        sections.append(f"Outcome: {' '.join(outcome)}")
+
+    if sections:
+        return shorten(" ".join(sections), limit)
+    return title
+
+
+def _keyword_tokens(text: str) -> list[str]:
+    tokens = re.findall(r"[a-z][a-z0-9\-]{2,}", clean_text(text).lower())
+    return [token for token in tokens if token not in DEFAULT_STOPWORDS]
+
+
+def _raw_keyword_tokens(text: str) -> list[str]:
+    return re.findall(r"[a-z][a-z0-9\-]{2,}", clean_text(text).lower())
+
+
 def extract_top_phrases(record: dict[str, Any], limit: int = 5) -> list[str]:
-    blobs = [
-        str(record.get("title") or ""),
-        str(record.get("description") or ""),
-        str(record.get("transcript_text") or ""),
+    weighted_sections = [
+        (str(record.get("title") or ""), 5),
+        (str(record.get("description") or ""), 3),
+        (str(record.get("transcript_text") or ""), 1),
     ]
-    corpus = clean_text(" ".join(blobs)).lower()
-    words = re.findall(r"[a-z][a-z\-]{3,}", corpus)
-    counts = Counter(word for word in words if word not in DEFAULT_STOPWORDS)
-    return [word for word, _ in counts.most_common(limit)]
+    phrase_counts: Counter[str] = Counter()
+    word_counts: Counter[str] = Counter()
+
+    for text, weight in weighted_sections:
+        raw_tokens = _raw_keyword_tokens(text)
+        tokens = [token for token in raw_tokens if token not in DEFAULT_STOPWORDS]
+        for token in tokens:
+            word_counts[token] += weight
+        for size in (3, 2):
+            for index in range(len(raw_tokens) - size + 1):
+                phrase_tokens = raw_tokens[index : index + size]
+                if any(token in DEFAULT_STOPWORDS for token in phrase_tokens):
+                    continue
+                if len(set(phrase_tokens)) < size:
+                    continue
+                phrase = " ".join(phrase_tokens)
+                phrase_counts[phrase] += weight + size
+
+    ranked_phrases = sorted(phrase_counts.items(), key=lambda item: (-item[1], -len(item[0].split()), item[0]))
+    ranked_words = sorted(word_counts.items(), key=lambda item: (-item[1], item[0]))
+    selected: list[str] = []
+    for phrase, _ in ranked_phrases:
+        phrase_tokens = set(phrase.split())
+        if any(
+            phrase_tokens <= set(existing.split()) or set(existing.split()) <= phrase_tokens
+            for existing in selected
+        ):
+            continue
+        selected.append(phrase)
+        if len(selected) >= limit:
+            break
+    if len(selected) < limit:
+        for word, _ in ranked_words:
+            if any(word in existing.split() for existing in selected):
+                continue
+            selected.append(word)
+            if len(selected) >= limit:
+                break
+    return selected
 
 
 def parse_date_value(value: str | None) -> str | None:
@@ -232,6 +481,7 @@ def normalize_video_record(raw: dict[str, Any]) -> dict[str, Any]:
         "transcript_status": str(raw.get("transcript_status") or ""),
         "transcript_word_count": int(raw.get("transcript_word_count") or 0),
         "summary": clean_text(str(raw.get("summary") or "")),
+        "detailed_summary": clean_text(str(raw.get("detailed_summary") or "")),
         "top_phrases": list(raw.get("top_phrases") or []),
         "caption_urls": list(raw.get("caption_urls") or extract_caption_urls(raw)),
     }
@@ -315,6 +565,7 @@ def write_records_csv(records: list[dict[str, Any]], path: Path) -> None:
         "transcript_word_count",
         "top_phrases",
         "summary",
+        "detailed_summary",
     ]
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
@@ -333,8 +584,30 @@ def write_records_csv(records: list[dict[str, Any]], path: Path) -> None:
                     "transcript_word_count": record.get("transcript_word_count", 0),
                     "top_phrases": "; ".join(record.get("top_phrases", [])),
                     "summary": record.get("summary", ""),
+                    "detailed_summary": record.get("detailed_summary", ""),
                 }
             )
+
+
+def transcript_source_label(status: str | None) -> str:
+    value = (status or "").strip()
+    if not value:
+        return "transcript pending"
+    if value == "cached":
+        return "saved transcript"
+    if value == "direct":
+        return "captions available on YouTube"
+    if value == "caption-url":
+        return "captions retrieved from YouTube"
+    if value == "subtitle":
+        return "subtitle file downloaded from YouTube"
+    if value == "local":
+        return "transcribed from audio"
+    if "audio-unavailable" in value:
+        return "transcript unavailable"
+    if value.startswith("direct-unavailable") or value.startswith("caption-unavailable") or value.startswith("subtitle-unavailable"):
+        return "captions unavailable"
+    return "transcript available"
 
 
 def dataset_markdown(
@@ -351,10 +624,10 @@ def dataset_markdown(
     lines.append("")
     for record in records:
         phrases = ", ".join(record.get("top_phrases", [])[:4]) or "n/a"
-        summary = record.get("summary") or summary_from_record(record)
+        summary = record.get("detailed_summary") or record.get("summary") or summary_from_record(record)
         lines.append(
             f"- {record.get('upload_date', '')}: [{record.get('title', record.get('video_id', 'Video'))}]({record.get('url', '')})"
-            f" | transcript: {record.get('transcript_status', '') or 'pending'}"
+            f" | transcript source: {transcript_source_label(record.get('transcript_status'))}"
             f" | phrases: {phrases}"
         )
         lines.append(f"  Summary: {summary}")

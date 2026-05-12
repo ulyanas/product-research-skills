@@ -30,6 +30,8 @@ uv run python scripts/build_report.py ...
 
 `build_report.py` uses the standard library only.
 
+If `yt-dlp` is missing, the scripts now return a friendly rerun message instead of a raw traceback. Use the `uv run --with ...` commands above as the default fix.
+
 ## Restricted Network Environments
 
 Some hosted agent environments block YouTube at the network or allowlist level.
@@ -70,6 +72,13 @@ Common symptoms:
 - direct `curl` to caption URLs returns a Google bot-detection page
 
 Treat those failures as content-access restrictions rather than a bug in the filter or report logic.
+
+Transient `429 Too Many Requests` responses can happen during caption, subtitle, or audio retrieval. The transcription script retries these requests automatically with short backoff before marking them unavailable.
+
+Optional retry controls:
+
+- `--retry-count <n>`
+- `--retry-delay-seconds <seconds>`
 
 When cookies are available in the environment, prefer passing them to `yt-dlp`.
 

@@ -4,18 +4,28 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shutil
 import subprocess
+import time
+import urllib.error
 import urllib.request
 from html import unescape
 from pathlib import Path
 
 from youtube_shared import (
+    detailed_summary_from_record,
     normalize_video_record,
     read_json,
     summary_from_record,
     transcripts_dir,
     write_json,
 )
+
+RETRYABLE_HTTP_CODES = {429}
+
+
+class DependencyError(RuntimeError):
+    pass
 
 
 def parse_args() -> argparse.Namespace:
@@ -29,7 +39,45 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--cookies", help="Optional path to a yt-dlp cookies.txt file")
     parser.add_argument("--cookies-from-browser", help="Optional browser name for yt-dlp --cookies-from-browser")
+    parser.add_argument("--retry-count", type=int, default=3)
+    parser.add_argument("--retry-delay-seconds", type=float, default=2.0)
     return parser.parse_args()
+
+
+def yt_dlp_missing_message() -> str:
+    return (
+        "yt-dlp is required for subtitle and audio fallback. "
+        "Re-run with: uv run --with yt-dlp --with youtube-transcript-api --with faster-whisper "
+        "python scripts/transcribe_with_fallback.py ..."
+    )
+
+
+def ensure_yt_dlp_available() -> None:
+    if shutil.which("yt-dlp") is None:
+        raise DependencyError(yt_dlp_missing_message())
+
+
+def with_retries(action, *, retries: int, delay_seconds: float):
+    last_error = None
+    for attempt in range(1, retries + 1):
+        try:
+            return action()
+        except urllib.error.HTTPError as exc:
+            last_error = exc
+            if exc.code not in RETRYABLE_HTTP_CODES or attempt >= retries:
+                raise
+            time.sleep(delay_seconds * attempt)
+        except subprocess.CalledProcessError as exc:
+            last_error = exc
+            combined = "\n".join(part for part in [exc.stdout, exc.stderr] if part)
+            if "429" not in combined and "too many requests" not in combined.lower():
+                raise
+            if attempt >= retries:
+                raise
+            time.sleep(delay_seconds * attempt)
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Retry loop completed without a result")
 
 
 def fetch_direct_transcript(video_id: str) -> tuple[str, str]:
@@ -147,7 +195,13 @@ def vtt_to_text(path: Path) -> str:
     return subtitle_text_to_plain(path.read_text(encoding="utf-8", errors="ignore"))
 
 
-def fetch_caption_urls(record: dict, timeout_seconds: int = 30) -> tuple[str, str]:
+def fetch_caption_urls(
+    record: dict,
+    *,
+    timeout_seconds: int = 30,
+    retries: int = 3,
+    delay_seconds: float = 2.0,
+) -> tuple[str, str]:
     for track in record.get("caption_urls", []):
         if not isinstance(track, dict):
             continue
@@ -156,8 +210,15 @@ def fetch_caption_urls(record: dict, timeout_seconds: int = 30) -> tuple[str, st
         if not url or not ext:
             continue
         try:
-            with urllib.request.urlopen(url, timeout=timeout_seconds) as response:
-                payload = response.read().decode("utf-8", errors="ignore")
+            def read_payload() -> str:
+                with urllib.request.urlopen(url, timeout=timeout_seconds) as response:
+                    return response.read().decode("utf-8", errors="ignore")
+
+            payload = with_retries(
+                read_payload,
+                retries=retries,
+                delay_seconds=delay_seconds,
+            )
         except Exception as exc:  # noqa: BLE001
             continue
         text = caption_payload_to_text(ext, payload)
@@ -172,6 +233,7 @@ def download_subtitles(transcript_dir: Path, video_id: str, url: str, args: argp
     if existing:
         return vtt_to_text(existing), "subtitle-cached"
 
+    ensure_yt_dlp_available()
     transcript_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         "yt-dlp",
@@ -189,7 +251,11 @@ def download_subtitles(transcript_dir: Path, video_id: str, url: str, args: argp
         url,
     ]
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        with_retries(
+            lambda: subprocess.run(cmd, check=True, capture_output=True, text=True),
+            retries=args.retry_count,
+            delay_seconds=args.retry_delay_seconds,
+        )
     except subprocess.CalledProcessError as exc:
         return "", f"subtitle-unavailable:{explain_yt_dlp_error(exc)}"
 
@@ -204,6 +270,7 @@ def download_audio(audio_dir: Path, video_id: str, url: str, args: argparse.Name
     if existing:
         return existing
 
+    ensure_yt_dlp_available()
     audio_dir.mkdir(parents=True, exist_ok=True)
     cmd = [
         "yt-dlp",
@@ -216,7 +283,11 @@ def download_audio(audio_dir: Path, video_id: str, url: str, args: argparse.Name
         url,
     ]
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True)
+        with_retries(
+            lambda: subprocess.run(cmd, check=True, capture_output=True, text=True),
+            retries=args.retry_count,
+            delay_seconds=args.retry_delay_seconds,
+        )
     except subprocess.CalledProcessError as exc:
         raise RuntimeError(explain_yt_dlp_error(exc)) from exc
     downloaded = audio_path_for(audio_dir, video_id)
@@ -276,7 +347,11 @@ def main() -> None:
             if transcript_text:
                 transcript_path.write_text(transcript_text + "\n", encoding="utf-8")
             else:
-                transcript_text, transcript_status = fetch_caption_urls(record)
+                transcript_text, transcript_status = fetch_caption_urls(
+                    record,
+                    retries=args.retry_count,
+                    delay_seconds=args.retry_delay_seconds,
+                )
                 if transcript_text:
                     transcript_path.write_text(transcript_text + "\n", encoding="utf-8")
                 else:
@@ -299,6 +374,7 @@ def main() -> None:
         enriched["transcript_status"] = transcript_status
         enriched["transcript_word_count"] = len(transcript_text.split())
         enriched["summary"] = record.get("summary") or summary_from_record(enriched)
+        enriched["detailed_summary"] = record.get("detailed_summary") or detailed_summary_from_record(enriched)
         enriched_records.append(enriched)
 
         print(
@@ -316,4 +392,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except DependencyError as exc:
+        raise SystemExit(f"Error: {exc}") from None

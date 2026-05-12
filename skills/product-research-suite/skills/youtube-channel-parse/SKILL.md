@@ -54,8 +54,9 @@ If the environment blocks YouTube network access, stop retrying after confirming
 2. Fetch video metadata.
 3. Retrieve the transcript.
 4. Produce a transcript file.
-5. Produce a markdown summary or notes file when the user asks for analysis, findings, or reusable notes.
-6. Produce structured JSON output when the task calls for downstream reuse.
+5. Produce a markdown summary or notes file when the user asks for analysis, findings, reusable notes, or a summary report.
+6. When a summary report is requested, write an extended summary for each selected video that covers the main plot, notable facts, insights, opinions, and outcome rather than a one-line description.
+7. Produce structured JSON output when the task calls for downstream reuse.
 
 ## Channel Workflow
 
@@ -65,6 +66,9 @@ If the environment blocks YouTube network access, stop retrying after confirming
 4. Write the filtered dataset before transcript work when the selection itself is part of the deliverable.
 5. Retrieve transcripts for the selected subset.
 6. Produce summaries, notes, and reports for the filtered set.
+7. When the deliverable is a summary report, treat the script outputs as source material and write the final report as a synthesized research memo rather than a transcript-derived bullet list.
+8. For conference, event, or multi-video reports, include a conference-wide or collection-wide throughline section before the per-video notes.
+9. For each video in a full report, prefer a structure with `Thesis`, `Insights`, `Facts`, and `Opinions and framing`.
 
 ## Filtering Rules
 
@@ -93,6 +97,10 @@ Reuse existing transcript files and cached audio files when they already match t
 
 Use `tiny.en` or `tiny` by default for fast transcription unless the user asks for higher accuracy.
 
+If `yt-dlp` is unavailable, rerun the workflow with `uv run --with yt-dlp ...` instead of raw `python`.
+
+If caption, subtitle, or media requests fail with `429 Too Many Requests`, retry a small number of times with backoff before treating the fetch as unavailable.
+
 If metadata retrieval works but captions or audio fail with bot-detection, `403`, or sign-in verification errors, treat that as a content-access restriction and explain the environment limits clearly.
 
 ## Outputs
@@ -104,6 +112,10 @@ If metadata retrieval works but captions or audio fail with bot-detection, `403`
 - markdown report with findings, summaries, and caveats
 
 Use markdown outputs for summaries, findings, reusable notes, and channel-level reports.
+
+For report outputs, prefer extended summaries over one-line blurbs.
+
+For high-quality research reports, use the generated JSON, transcripts, and script summaries as inputs to a cleaner synthesized markdown narrative.
 
 Read naming and directory conventions from `references/outputs.md` when writing artifacts.
 
@@ -118,6 +130,8 @@ Read naming and directory conventions from `references/outputs.md` when writing 
 | Video or Channel | Fetch direct transcripts when available | Faster transcript retrieval from existing sources |
 | Video or Channel | Generate transcripts from downloaded audio when needed | Continued execution when direct transcripts are unavailable |
 | Video or Channel | Generate concise summaries and reusable artifacts | Markdown reports, notes, and structured data outputs |
+| Video or Channel | Generate extended report summaries on request | Per-video report entries that cover plot, facts, insights, opinions, and outcome |
+| Channel | Generate synthesized research memos | A report with collection-wide throughline plus per-video thesis, insights, facts, and framing |
 
 ## Resources
 
