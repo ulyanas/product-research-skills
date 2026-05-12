@@ -20,31 +20,36 @@ The bundle currently includes one packaged workflow:
 
 ## Example Use Cases
 
-- Research a market category by reviewing how founders, operators, or creators talk about the problem.
-- Pull customer language from conference talks, interviews, and product videos.
-- Analyze a creator or company channel to understand positioning, themes, and recurring narratives.
-- Build a reusable discovery dataset from a filtered set of videos.
+- Parse all videos from a particular conference or other event and provide summaries and insights.
+- Review Reddit for insights on the topic. Coming soon.
+- Review Product Hunt for insights on the topic. Coming soon.
 
 ## Install
 
-Install the bundle with the `skills.sh` CLI:
+Install with the `skills.sh` CLI:
 
 ```bash
 npx skills add ulyanas/product-research-skills --skill product-research-suite -g -y
 ```
 
-The CLI detects the current agent automatically and installs the bundle into that agent's skills directory.
+This installs the skill globally for your current agent.
 
-For Codex, this installs into `~/.agents/skills/`.
-
-Install it for one project instead of your user profile:
+Install it only for the current project:
 
 ```bash
 npx skills add ulyanas/product-research-skills --skill product-research-suite -y
 ```
 
-Set the agent explicitly when you want a fixed target:
+List available skills before installing:
+
+```bash
+npx skills add ulyanas/product-research-skills --list
+```
+
+Set the target agent explicitly when you want a fixed destination:
 
 ```bash
 npx skills add ulyanas/product-research-skills --skill product-research-suite -a codex -g -y
 ```
+
+The CLI detects the current agent automatically when you do not pass `-a`.
