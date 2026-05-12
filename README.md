@@ -19,15 +19,23 @@ The bundle currently includes:
 Install the suite locally with the `skills.sh` CLI:
 
 ```bash
-npx skills add ulyanas/product-research-skills --skill product-research-suite -a codex -g -y
+npx skills add ulyanas/product-research-skills --skill product-research-suite -g -y
 ```
 
-For Codex, this installs the bundle into `~/.agents/skills/`.
+The CLI detects the current agent and installs the bundle into that agent's skills directory.
+
+For Codex, this installs into `~/.agents/skills/`.
 
 Install it for one project instead of your user profile:
 
 ```bash
-npx skills add ulyanas/product-research-skills --skill product-research-suite -a codex -y
+npx skills add ulyanas/product-research-skills --skill product-research-suite -y
+```
+
+Set the agent explicitly when you want a fixed target:
+
+```bash
+npx skills add ulyanas/product-research-skills --skill product-research-suite -a codex -g -y
 ```
 
 ## Packaging
