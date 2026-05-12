@@ -1,22 +1,22 @@
 # Product Research Skills
 
-Skill set for product managers running research and discovery workflows with agents.
+A work-in-progress skill set for product managers running research and discovery workflows with agents.
 
-Use this bundle when you want structured help with market research, customer language capture, content analysis, and reusable discovery outputs.
+The first shipped skill focuses on extracting insights from YouTube channels and videos.
 
-## What It Helps With
+## Current Focus
 
-- turning research questions into repeatable workflows
-- pulling useful signals from long-form content
+- extracting insights from YouTube channels
+- collecting transcripts from videos
+- filtering videos by criteria such as topic or date
 - organizing findings into summaries, notes, and structured datasets
-- building reusable discovery assets for product strategy, positioning, and planning
 
 ## Included Skill
 
 The bundle currently includes one packaged workflow:
 
 - `youtube-channel-parse`
-  Analyze a YouTube channel or a single video, collect transcripts, filter videos by criteria such as topic or date, and produce summaries and structured outputs.
+  Analyze a YouTube channel or a single video, collect transcripts, extract insights, filter videos by criteria such as topic or date, and produce structured outputs.
 
 ## Example Use Cases
 
