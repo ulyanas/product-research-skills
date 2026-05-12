@@ -1,11 +1,11 @@
 ---
 name: product-research-suite
-description: YouTube-first product research skill bundle for transcript, filtering, summary, and structured research workflows. Use when you want one entrypoint for product research from YouTube channels or videos, reusable research outputs, or a bundle that can expand with additional product research skills over time.
+description: Product research and discovery skill set for product managers. Use when you need one entrypoint for market research, customer language capture, competitor and content analysis, research synthesis, or reusable discovery outputs across evolving research workflows.
 ---
 
 # Product Research Suite
 
-Use this as the bundle entrypoint when you want one skill that covers YouTube-based product research strategy plus execution.
+Use this as the bundle entrypoint when you want one skill that supports product research strategy, discovery, and execution.
 
 This bundle currently includes:
 
@@ -19,7 +19,7 @@ Use this skill for requests like:
 - "Analyze a creator channel to understand product positioning"
 - "Pull customer language from videos and organize the findings"
 - "Build reusable research outputs from a filtered set of videos"
-- "Build a product research workflow that starts with YouTube and keeps the outputs structured"
+- "Build a reusable product discovery workflow and keep the outputs structured"
 
 ## Workflow Selector
 
