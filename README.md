@@ -1,60 +1,48 @@
 # Product Research Skills
 
-A work-in-progress skill set for product managers running research and discovery workflows with agents.
-
-## Current Focus
-
-- extracting insights from YouTube channels
-- collecting transcripts from videos
-- filtering videos by criteria such as topic or date
-- organizing findings into summaries, notes, and structured datasets
-- mapping Product Hunt competitors and adjacent products
-- collecting Product Hunt creator intros and user comments
-- extracting customer language, feature expectations, and public feedback patterns
-
-## Included Skills
-
-This repo now supports:
-
-- a bundle skill
-- individual installable skills
-
-- `youtube-channel-parse`
-  Analyze a YouTube channel or a single video, collect transcripts, extract insights, filter videos by criteria such as topic or date, and produce structured outputs.
-- `producthunt-temperature-check`
-  Analyze a product idea or existing product through Product Hunt listings, creator intros, user comments, positioning, feature patterns, and full comment corpus collection.
-- `product-research-suite`
-  Use one entrypoint that can route to YouTube research or Product Hunt research depending on the task.
-
-## Example Use Cases
-
-- Parse all videos from a particular conference or other event and provide summaries and insights.
-- Review Product Hunt for insights on the topic and collect exact creator and user language.
-- Compare YouTube language with Product Hunt public feedback for the same category.
+A consumer-friendly skill bundle for product managers, founders, and researchers who want to turn public channels into structured product insight. These skills help collect evidence, extract customer language, map competitors, and build reusable research outputs you can review or feed into later analysis. The bundle is designed so you can install one entrypoint for broader workflows or install just the source-specific skill you need for a single task. Today the focus is YouTube and Product Hunt. Reddit research is planned next.
 
 ## Install
 
-Install with the `skills.sh` CLI:
+Install the full bundle with the `skills.sh` CLI:
 
 ```bash
 npx skills add ulyanas/product-research-skills --skill product-research-suite -g -y
 ```
 
-This installs the skill globally for your current agent.
-
-Install it only for the current project:
+Install the bundle only for the current project:
 
 ```bash
 npx skills add ulyanas/product-research-skills --skill product-research-suite -y
 ```
 
-Install only the YouTube skill:
+## Existing Skills
+
+### `product-research-suite`
+
+`product-research-suite` is the bundle entrypoint for this repo. It is useful when you want one install that can route between multiple research channels without deciding up front which source-specific skill to use. The suite is designed for broader product discovery work, recurring research habits, and mixed workflows where one project may start with YouTube and later expand into Product Hunt or other public channels. It focuses on reusable outputs, structured synthesis, and keeping research workflows organized as the bundle grows. Use it when you want the most flexible install path and a single research-oriented skill name to remember.
+
+Install:
+
+```bash
+npx skills add ulyanas/product-research-skills --skill product-research-suite -g -y
+```
+
+### `youtube-channel-parse`
+
+`youtube-channel-parse` is the YouTube-focused research skill for collecting channel or single-video data, pulling transcripts, filtering videos by topic or date, and turning long-form content into usable product insight. It is a strong fit for founder interviews, conference talks, launch videos, customer education channels, and creator ecosystems where product language emerges through spoken content rather than short text posts. The skill is built to save the raw transcript outputs, support filtering, and produce summaries you can reuse later. Install this when your research question is primarily about YouTube content and you do not need the broader bundle.
+
+Install:
 
 ```bash
 npx skills add ulyanas/product-research-skills --skill youtube-channel-parse -g -y
 ```
 
-Install only the Product Hunt skill:
+### `producthunt-temperature-check`
+
+`producthunt-temperature-check` is the Product Hunt research skill for analyzing how a product idea or existing company appears through Product Hunt listings, creator intros, user comments, feature framing, and adjacent launches. It is useful for competitor discovery, customer language capture, feature expectation mapping, and comment-driven category research. The skill separates creator framing from user feedback, preserves raw comment corpora, and generates a structured research report plus audit artifacts. Use it when Product Hunt is a meaningful public signal for your category and you want exact language from listings and discussion threads rather than a loose summary.
+
+Install:
 
 ```bash
 npx skills add ulyanas/product-research-skills --skill producthunt-temperature-check -g -y
@@ -66,32 +54,7 @@ List available skills before installing:
 npx skills add ulyanas/product-research-skills --list
 ```
 
-Set the target agent explicitly when you want a fixed destination. Most users do not need this because the CLI detects the current agent automatically.
+## Planned
 
-## Source Repo Paths
-
-Top-level skill paths in this repo:
-
-- `skills/product-research-suite`
-- `skills/youtube-channel-parse`
-- `skills/producthunt-temperature-check`
-
-### Agent Examples
-
-Codex:
-
-```bash
-npx skills add ulyanas/product-research-skills --skill product-research-suite -a codex -g -y
-```
-
-Claude Code:
-
-```bash
-npx skills add ulyanas/product-research-skills --skill product-research-suite -a claude-code -g -y
-```
-
-Cursor:
-
-```bash
-npx skills add ulyanas/product-research-skills --skill product-research-suite -a cursor -g -y
-```
+- `reddit-research`
+  A planned skill for collecting and analyzing public Reddit discussions, repeated pain points, language patterns, objections, and community sentiment for product and market research.
