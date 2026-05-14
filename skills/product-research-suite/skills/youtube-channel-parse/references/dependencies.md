@@ -101,10 +101,14 @@ uv run --with yt-dlp --with youtube-transcript-api --with faster-whisper \
   --input-json output/<output_prefix>/filtered/<output_prefix>_videos.json \
   --output-root output \
   --output-prefix <output_prefix> \
-  --whisper-model tiny.en
+  --whisper-model tiny
 ```
 
-Use `--whisper-model tiny.en` by default for fast English transcription.
+Use `--whisper-model tiny` by default for fast multilingual transcription.
+
+Use `--preferred-language <code>` when the user wants a specific transcript language, and repeat the flag to define fallback order.
+
+The script also detects transcript language after retrieval and uses it for phrase extraction and summaries.
 
 Use a larger model only when the user asks for higher accuracy or when transcript quality needs improvement.
 
@@ -124,7 +128,9 @@ Prefer `uv run --with faster-whisper` over manual installation when possible.
 
 Use `--no-check-certificates` with `yt-dlp` when the environment requires it.
 
-Use `tiny.en` or `tiny` for fast English transcription by default.
+Use multilingual Whisper models such as `tiny` or `small` for general YouTube transcription.
+
+Use `tiny.en` for explicitly English-only workflows.
 
 Use a larger Whisper model only when the user asks for higher accuracy or the transcript quality needs improvement.
 

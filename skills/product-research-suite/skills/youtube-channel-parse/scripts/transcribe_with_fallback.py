@@ -13,10 +13,13 @@ from html import unescape
 from pathlib import Path
 
 from youtube_shared import (
+    detect_language_from_text,
     detailed_summary_from_record,
     normalize_video_record,
+    preferred_caption_languages,
     read_json,
     summary_from_record,
+    summary_needs_refresh,
     transcripts_dir,
     write_json,
 )
@@ -35,12 +38,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input-json", required=True, help="Path to a dataset JSON file from fetch_channel.py")
     parser.add_argument("--output-root", default="output")
     parser.add_argument("--output-prefix", required=True)
-    parser.add_argument("--whisper-model", default="tiny.en")
+    parser.add_argument("--whisper-model", default="tiny")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--cookies", help="Optional path to a yt-dlp cookies.txt file")
     parser.add_argument("--cookies-from-browser", help="Optional browser name for yt-dlp --cookies-from-browser")
     parser.add_argument("--retry-count", type=int, default=3)
     parser.add_argument("--retry-delay-seconds", type=float, default=2.0)
+    parser.add_argument(
+        "--preferred-language",
+        action="append",
+        default=[],
+        help="Preferred transcript language code. Repeat the flag to pass multiple languages in order.",
+    )
     return parser.parse_args()
 
 
@@ -80,12 +89,24 @@ def with_retries(action, *, retries: int, delay_seconds: float):
     raise RuntimeError("Retry loop completed without a result")
 
 
-def fetch_direct_transcript(video_id: str) -> tuple[str, str]:
+def transcript_languages(record: dict, args: argparse.Namespace) -> list[str]:
+    if args.preferred_language:
+        return [str(value).strip() for value in args.preferred_language if str(value).strip()]
+    languages = preferred_caption_languages(record)
+    if languages:
+        return languages
+    return []
+
+
+def fetch_direct_transcript(video_id: str, languages: list[str]) -> tuple[str, str]:
     from youtube_transcript_api import YouTubeTranscriptApi
 
     api = YouTubeTranscriptApi()
     try:
-        transcript = api.fetch(video_id, languages=["en"])
+        if languages:
+            transcript = api.fetch(video_id, languages=languages)
+        else:
+            transcript = api.fetch(video_id)
     except Exception as exc:  # noqa: BLE001
         return "", f"direct-unavailable:{type(exc).__name__}"
     text = " ".join(snippet.text.strip() for snippet in transcript if snippet.text.strip()).strip()
@@ -97,17 +118,31 @@ def audio_path_for(audio_dir: Path, video_id: str) -> Path | None:
     return matches[0] if matches else None
 
 
-def subtitle_path_for(transcript_dir: Path, video_id: str) -> Path | None:
+def subtitle_path_for(transcript_dir: Path, video_id: str, languages: list[str] | None = None) -> Path | None:
     patterns = [
         f"{video_id}*.vtt",
+        f"{video_id}*.srt",
         f"{video_id}*.srv3",
         f"{video_id}*.ttml",
     ]
+    candidates: list[Path] = []
     for pattern in patterns:
-        matches = list(transcript_dir.glob(pattern))
-        if matches:
-            return matches[0]
-    return None
+        candidates.extend(transcript_dir.glob(pattern))
+    if not candidates:
+        return None
+
+    preferred_languages = [language.lower() for language in languages or [] if language]
+
+    def path_priority(path: Path) -> tuple[int, int, str]:
+        name = path.name.lower()
+        for index, language in enumerate(preferred_languages):
+            markers = (f".{language}.", f".{language}-orig.")
+            if any(marker in name for marker in markers):
+                return (0, index, name)
+        return (1, len(preferred_languages), name)
+
+    candidates.sort(key=path_priority)
+    return candidates[0]
 
 
 def caption_payload_to_text(ext: str, payload: str) -> str:
@@ -228,13 +263,22 @@ def fetch_caption_urls(
     return "", "caption-url-unavailable"
 
 
-def download_subtitles(transcript_dir: Path, video_id: str, url: str, args: argparse.Namespace) -> tuple[str, str]:
-    existing = subtitle_path_for(transcript_dir, video_id)
+def download_subtitles(
+    transcript_dir: Path,
+    video_id: str,
+    url: str,
+    record: dict,
+    args: argparse.Namespace,
+) -> tuple[str, str]:
+    subtitle_languages = transcript_languages(record, args)
+    existing = subtitle_path_for(transcript_dir, video_id, subtitle_languages)
     if existing:
         return vtt_to_text(existing), "subtitle-cached"
 
     ensure_yt_dlp_available()
     transcript_dir.mkdir(parents=True, exist_ok=True)
+    if not subtitle_languages:
+        subtitle_languages = ["all"]
     cmd = [
         "yt-dlp",
         "--no-check-certificates",
@@ -242,7 +286,7 @@ def download_subtitles(transcript_dir: Path, video_id: str, url: str, args: argp
         "--write-auto-subs",
         "--write-subs",
         "--sub-langs",
-        "en.*,en",
+        ",".join(subtitle_languages),
         "--sub-format",
         "vtt",
         "-o",
@@ -259,7 +303,7 @@ def download_subtitles(transcript_dir: Path, video_id: str, url: str, args: argp
     except subprocess.CalledProcessError as exc:
         return "", f"subtitle-unavailable:{explain_yt_dlp_error(exc)}"
 
-    downloaded = subtitle_path_for(transcript_dir, video_id)
+    downloaded = subtitle_path_for(transcript_dir, video_id, subtitle_languages)
     if downloaded is None:
         return "", "subtitle-unavailable:yt-dlp completed without subtitle output"
     return vtt_to_text(downloaded), "subtitle"
@@ -296,16 +340,17 @@ def download_audio(audio_dir: Path, video_id: str, url: str, args: argparse.Name
     return downloaded
 
 
-def transcribe_local(media_path: Path, model_name: str) -> str:
+def transcribe_local(media_path: Path, model_name: str, language_hint: str | None = None) -> str:
     from faster_whisper import WhisperModel
 
     model = WhisperModel(model_name, device="cpu", compute_type="int8")
-    segments, _info = model.transcribe(
-        str(media_path),
-        vad_filter=True,
-        beam_size=1,
-        language="en",
-    )
+    kwargs = {
+        "vad_filter": True,
+        "beam_size": 1,
+    }
+    if language_hint:
+        kwargs["language"] = language_hint
+    segments, _info = model.transcribe(str(media_path), **kwargs)
     return " ".join(segment.text.strip() for segment in segments if segment.text.strip()).strip()
 
 
@@ -335,6 +380,7 @@ def main() -> None:
     total = len(records)
     for index, record in enumerate(records, start=1):
         video_id = record["video_id"]
+        languages = transcript_languages(record, args)
         transcript_path = transcript_dir / f"{video_id}.txt"
         transcript_text = ""
         transcript_status = ""
@@ -343,7 +389,7 @@ def main() -> None:
             transcript_text = transcript_path.read_text(encoding="utf-8").strip()
             transcript_status = "cached"
         else:
-            transcript_text, transcript_status = fetch_direct_transcript(video_id)
+            transcript_text, transcript_status = fetch_direct_transcript(video_id, languages)
             if transcript_text:
                 transcript_path.write_text(transcript_text + "\n", encoding="utf-8")
             else:
@@ -355,7 +401,13 @@ def main() -> None:
                 if transcript_text:
                     transcript_path.write_text(transcript_text + "\n", encoding="utf-8")
                 else:
-                    transcript_text, transcript_status = download_subtitles(transcript_dir, video_id, record["url"], args)
+                    transcript_text, transcript_status = download_subtitles(
+                        transcript_dir,
+                        video_id,
+                        record["url"],
+                        record,
+                        args,
+                    )
                 if transcript_text:
                     transcript_path.write_text(transcript_text + "\n", encoding="utf-8")
                 else:
@@ -365,16 +417,34 @@ def main() -> None:
                         transcript_status = f"{transcript_status};audio-unavailable:{exc}"
                         transcript_text = ""
                     else:
-                        transcript_text = transcribe_local(media_path, args.whisper_model)
+                        transcript_text = transcribe_local(
+                            media_path,
+                            args.whisper_model,
+                            language_hint=languages[0] if languages else None,
+                        )
                         transcript_status = "local"
                         transcript_path.write_text(transcript_text + "\n", encoding="utf-8")
 
         enriched = dict(record)
+        enriched["preferred_languages"] = languages
         enriched["transcript_text"] = transcript_text
         enriched["transcript_status"] = transcript_status
         enriched["transcript_word_count"] = len(transcript_text.split())
-        enriched["summary"] = record.get("summary") or summary_from_record(enriched)
-        enriched["detailed_summary"] = record.get("detailed_summary") or detailed_summary_from_record(enriched)
+        enriched["detected_language"] = (
+            detect_language_from_text(transcript_text)
+            or (languages[0] if languages else "")
+            or str(record.get("detected_language") or "")
+        )
+        enriched["summary"] = (
+            summary_from_record(enriched)
+            if summary_needs_refresh(record.get("summary"))
+            else record.get("summary")
+        )
+        enriched["detailed_summary"] = (
+            detailed_summary_from_record(enriched)
+            if summary_needs_refresh(record.get("detailed_summary"))
+            else record.get("detailed_summary")
+        )
         enriched_records.append(enriched)
 
         print(

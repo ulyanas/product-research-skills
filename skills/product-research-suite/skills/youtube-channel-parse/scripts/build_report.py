@@ -10,11 +10,13 @@ from youtube_shared import (
     detailed_summary_from_record,
     extract_top_phrases,
     filtered_dir,
+    language_for_record,
     parse_date_value,
     parse_metadata_filters,
     read_json,
     reports_dir,
     summary_from_record,
+    summary_needs_refresh,
     transcript_source_label,
     transcripts_dir,
     write_json,
@@ -57,6 +59,7 @@ def write_video_markdown(output_dir: Path, records: list[dict]) -> None:
             "",
             f"- URL: {record.get('url')}",
             f"- Upload date: {record.get('upload_date') or 'unknown'}",
+            f"- Language: {record.get('detected_language') or language_for_record(record) or 'unknown'}",
             f"- Transcript source: {transcript_source_label(record.get('transcript_status'))}",
             f"- Words: {record.get('transcript_word_count', 0)}",
             "",
@@ -65,9 +68,6 @@ def write_video_markdown(output_dir: Path, records: list[dict]) -> None:
             record.get("detailed_summary") or record.get("summary") or detailed_summary_from_record(record),
             "",
         ]
-        phrases = record.get("top_phrases", [])
-        if phrases:
-            lines.extend(["## Top Phrases", "", ", ".join(phrases), ""])
         note_path.write_text("\n".join(lines).strip() + "\n", encoding="utf-8")
 
 
@@ -104,9 +104,14 @@ def main() -> None:
     )
 
     for record in filtered_records:
+        record["detected_language"] = record.get("detected_language") or language_for_record(record)
         record["top_phrases"] = record.get("top_phrases") or extract_top_phrases(record)
-        record["summary"] = record.get("summary") or summary_from_record(record)
-        record["detailed_summary"] = record.get("detailed_summary") or detailed_summary_from_record(record)
+        record["summary"] = summary_from_record(record) if summary_needs_refresh(record.get("summary")) else record.get("summary")
+        record["detailed_summary"] = (
+            detailed_summary_from_record(record)
+            if summary_needs_refresh(record.get("detailed_summary"))
+            else record.get("detailed_summary")
+        )
 
     payload = dict(payload) if isinstance(payload, dict) else {}
     payload["videos"] = filtered_records

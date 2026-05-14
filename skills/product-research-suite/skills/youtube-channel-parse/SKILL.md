@@ -35,6 +35,7 @@ Accept these inputs:
 - optional `metadata_filters`
 - `output_prefix`
 - optional `whisper_model`
+- optional `preferred_language`
 
 ## Workflow Selection
 
@@ -89,13 +90,19 @@ Read detailed filter semantics from `references/filtering.md` when the request d
 
 Retrieve direct transcripts first.
 
+Use the languages exposed by the video metadata when subtitles or captions are available. Prefer the original track language ahead of translated tracks.
+
+Detect the transcript language after retrieval and carry that language into phrase extraction, summaries, and report outputs.
+
 When direct transcripts are unavailable, try subtitle retrieval before full audio transcription.
 
 When subtitle retrieval is unavailable, generate transcripts from downloaded audio and continue the workflow.
 
 Reuse existing transcript files and cached audio files when they already match the current request.
 
-Use `tiny.en` or `tiny` by default for fast transcription unless the user asks for higher accuracy.
+Use the multilingual Whisper models such as `tiny` or `small` by default. Use `tiny.en` only for explicitly English-only workflows.
+
+Pass `--preferred-language` when the user asks for a specific transcript language or when the metadata exposes several useful caption tracks.
 
 If `yt-dlp` is unavailable, rerun the workflow with `uv run --with yt-dlp ...` instead of raw `python`.
 
