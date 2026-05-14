@@ -10,6 +10,7 @@ Use this as the bundle entrypoint when you want one skill that supports product 
 This bundle currently includes:
 
 - `youtube-channel-parse` for YouTube channel and single-video transcript, filtering, and summary workflows
+- `producthunt-temperature-check` for Product Hunt-based competitor, comment, and positioning research
 
 ## When To Use This Skill
 
@@ -20,6 +21,8 @@ Use this skill for requests like:
 - "Pull customer language from videos and organize the findings"
 - "Build reusable research outputs from a filtered set of videos"
 - "Build a reusable product discovery workflow and keep the outputs structured"
+- "Research this product through Product Hunt listings and comments"
+- "Extract Product Hunt customer language and competitor patterns"
 
 ## Workflow Selector
 
@@ -51,6 +54,31 @@ Scripts:
 - `skills/youtube-channel-parse/scripts/transcribe_with_fallback.py`
 - `skills/youtube-channel-parse/scripts/build_report.py`
 
+### 2. Product Hunt Research
+
+Use when the task involves:
+
+- Product Hunt listings
+- Product Hunt comments
+- creator intros and user feedback
+- Product Hunt competitor mapping
+- Product Hunt positioning analysis
+
+Primary source:
+
+- `skills/producthunt-temperature-check/SKILL.md`
+
+Primary references:
+
+- `skills/producthunt-temperature-check/references/output-template.md`
+- `skills/producthunt-temperature-check/references/implementation.md`
+- `skills/producthunt-temperature-check/references/field-notes.md`
+
+Scripts:
+
+- `skills/producthunt-temperature-check/scripts/collect_listing_threads.py`
+- `skills/producthunt-temperature-check/scripts/render_comment_corpus.py`
+
 ## Output Standards
 
 When using this bundle, prefer structured outputs that include:
@@ -65,3 +93,5 @@ When using this bundle, prefer structured outputs that include:
 ## Practical Rule
 
 If the request spans bundle-level research planning plus YouTube execution, stay in `product-research-suite` and pull in the bundled files above as needed.
+
+If the request spans bundle-level research planning plus Product Hunt execution, stay in `product-research-suite` and pull in the bundled files above as needed.
