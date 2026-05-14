@@ -40,19 +40,19 @@ Use when the task involves:
 
 Primary source:
 
-- `skills/youtube-channel-parse/SKILL.md`
+- `../youtube-channel-parse/SKILL.md`
 
 Primary references:
 
-- `skills/youtube-channel-parse/references/dependencies.md`
-- `skills/youtube-channel-parse/references/filtering.md`
-- `skills/youtube-channel-parse/references/outputs.md`
+- `../youtube-channel-parse/references/dependencies.md`
+- `../youtube-channel-parse/references/filtering.md`
+- `../youtube-channel-parse/references/outputs.md`
 
 Scripts:
 
-- `skills/youtube-channel-parse/scripts/fetch_channel.py`
-- `skills/youtube-channel-parse/scripts/transcribe_with_fallback.py`
-- `skills/youtube-channel-parse/scripts/build_report.py`
+- `../youtube-channel-parse/scripts/fetch_channel.py`
+- `../youtube-channel-parse/scripts/transcribe_with_fallback.py`
+- `../youtube-channel-parse/scripts/build_report.py`
 
 ### 2. Product Hunt Research
 

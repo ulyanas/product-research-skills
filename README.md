@@ -12,14 +12,19 @@ A work-in-progress skill set for product managers running research and discovery
 - collecting Product Hunt creator intros and user comments
 - extracting customer language, feature expectations, and public feedback patterns
 
-## Included Skill
+## Included Skills
 
-The bundle currently includes two packaged workflows:
+This repo now supports:
+
+- a bundle skill
+- individual installable skills
 
 - `youtube-channel-parse`
   Analyze a YouTube channel or a single video, collect transcripts, extract insights, filter videos by criteria such as topic or date, and produce structured outputs.
 - `producthunt-temperature-check`
   Analyze a product idea or existing product through Product Hunt listings, creator intros, user comments, positioning, feature patterns, and full comment corpus collection.
+- `product-research-suite`
+  Use one entrypoint that can route to YouTube research or Product Hunt research depending on the task.
 
 ## Example Use Cases
 
@@ -43,6 +48,18 @@ Install it only for the current project:
 npx skills add ulyanas/product-research-skills --skill product-research-suite -y
 ```
 
+Install only the YouTube skill:
+
+```bash
+npx skills add ulyanas/product-research-skills --skill youtube-channel-parse -g -y
+```
+
+Install only the Product Hunt skill:
+
+```bash
+npx skills add ulyanas/product-research-skills --skill producthunt-temperature-check -g -y
+```
+
 List available skills before installing:
 
 ```bash
@@ -56,6 +73,7 @@ Set the target agent explicitly when you want a fixed destination. Most users do
 Top-level skill paths in this repo:
 
 - `skills/product-research-suite`
+- `skills/youtube-channel-parse`
 - `skills/producthunt-temperature-check`
 
 ### Agent Examples
