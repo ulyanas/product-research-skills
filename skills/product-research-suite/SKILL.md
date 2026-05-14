@@ -66,18 +66,18 @@ Use when the task involves:
 
 Primary source:
 
-- `skills/producthunt-temperature-check/SKILL.md`
+- `../producthunt-temperature-check/SKILL.md`
 
 Primary references:
 
-- `skills/producthunt-temperature-check/references/output-template.md`
-- `skills/producthunt-temperature-check/references/implementation.md`
-- `skills/producthunt-temperature-check/references/field-notes.md`
+- `../producthunt-temperature-check/references/output-template.md`
+- `../producthunt-temperature-check/references/implementation.md`
+- `../producthunt-temperature-check/references/field-notes.md`
 
 Scripts:
 
-- `skills/producthunt-temperature-check/scripts/collect_listing_threads.py`
-- `skills/producthunt-temperature-check/scripts/render_comment_corpus.py`
+- `../producthunt-temperature-check/scripts/collect_listing_threads.py`
+- `../producthunt-temperature-check/scripts/render_comment_corpus.py`
 
 ## Output Standards
 

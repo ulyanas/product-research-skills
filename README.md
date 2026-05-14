@@ -51,11 +51,11 @@ npx skills add ulyanas/product-research-skills --list
 
 Set the target agent explicitly when you want a fixed destination. Most users do not need this because the CLI detects the current agent automatically.
 
-## Included Skill Paths
+## Source Repo Paths
 
-Inside the packaged suite:
+Top-level skill paths in this repo:
 
-- `skills/youtube-channel-parse`
+- `skills/product-research-suite`
 - `skills/producthunt-temperature-check`
 
 ### Agent Examples
