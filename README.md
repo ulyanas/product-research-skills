@@ -16,7 +16,7 @@ Install the bundle only for the current project:
 npx skills add ulyanas/product-research-skills --skill product-research-suite -y
 ```
 
-## Existing Skills
+## Included Skills
 
 ### `product-research-suite`
 
